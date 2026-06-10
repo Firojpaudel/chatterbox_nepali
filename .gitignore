@@ -43,9 +43,8 @@ checkpoints/
 .gradio/
 .cache/
 
-# Generated audio files (keep reference samples)
+# Generated audio files (keep reference samples in samples/)
 *.wav
-gradio_output.wav
 
 # macOS
 .DS_Store
@@ -55,6 +54,11 @@ gradio_output.wav
 *.pt
 lora_nepali_epoch_*/
 lora_maithili_epoch_*/
+lora_extended_epoch_*/
+lora_extended_final/
+mai_LoRA_*/
+nep_LoRA_*/
+t3-model/
 checkpoint-*/
 *.log
 
@@ -81,5 +85,55 @@ interactive_tts.py
 test_forgetting.py
 test_nepali.py
 chatterbox-nepali-finetune.ipynb
+gcp_tts.json
+see_vllm_in_action.py
+test_nepali_model.py
+analyze_dataset.py
+augment_english_data.py
+create_maithili_files.py
+download_dataset.py
+merge_models.py
+prepare_kaggle_maithili.py
+gradio_tts_turbo_app.py
+gradio_vc_app.py
+grapheme_mtl_merged_expanded_v1.json
 
+# Removed training scripts (kept locally)
+src/chatterbox/train_maithili.py
+src/chatterbox/train_nepali.py
+src/chatterbox/train_multilingual_local.py
+src/chatterbox/train_multilingual_v3.py
+src/chatterbox/train_multilingual_v4.py
+src/chatterbox/train_multilingual_v5.py
+src/chatterbox/test_lora_epoch.py
+
+# One-off shell scripts (kept locally)
+run_inference.sh
+run_extended_training.sh
+run_separate_training.sh
+run_lora.sh
+run_v4.sh
+run_v5.sh
+test_all.sh
+
+# Test data (kept locally)
+tests/
+
+# Training docs (kept locally)
+RUN_TRAINING_V2.md
+RUN_TRAINING_V3.md
+CHATTERBOX_DEPLOYMENT_GUIDE.md
+
+# Experiment tracking
 wandb/
+
+# Samples subdirs (generated test output)
+samples/comparison_results/
+samples/test_results/
+samples/test_long_maithili.txt
+
+# Utility scripts (kept locally)
+src/chatterbox/utils/convert_to_parquet.py
+src/chatterbox/utils/generate_extra_nepali_data.py
+src/chatterbox/utils/generate_gcp_audio.py
+src/chatterbox/utils/generate_thousands_nepali_data.py

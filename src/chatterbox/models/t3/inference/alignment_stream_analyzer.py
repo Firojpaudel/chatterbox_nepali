@@ -196,10 +196,10 @@ class AlignmentStreamAnalyzer:
             self.stagnation_streak = 0
         self.last_text_posn = cur_text_posn
 
-        # If model is lost (discontinuous) for 80 frames (~3.2s), or stuck for 150 frames (~6s)
+        # If model is lost (discontinuous) for 30 frames (~1.2s), or stuck for 40 frames (~1.6s)
         # We ignore discontinuity during the first 50 steps (warm-up period)
-        is_lost = self.discontinuity_streak > 80 and self.curr_frame_pos > 50
-        is_stuck = self.stagnation_streak > 150
+        is_lost = self.discontinuity_streak > 30 and self.curr_frame_pos > 50
+        is_stuck = self.stagnation_streak > 40
         
         if is_lost or is_stuck:
             import logging

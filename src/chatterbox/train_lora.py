@@ -57,7 +57,7 @@ from chatterbox.models.tokenizers import MTLTokenizer
 from datasets import load_dataset, Audio
 
 class MultilingualDataset(Dataset):
-    def __init__(self, data_path, tokenizer, device):
+    def __init__(self, data_path, tokenizer, device, languages=None):
         self.tokenizer = tokenizer
         self.device = device
         
@@ -68,6 +68,17 @@ class MultilingualDataset(Dataset):
         
         self.full_ds = load_dataset("parquet", data_files=data_files, split="train")
         self.full_ds = self.full_ds.cast_column("audio", Audio(sampling_rate=S3_SR, decode=False))
+        
+        # Filter by language if specified
+        if languages:
+            lang_set = set(languages)
+            print(f"🔍 Filtering dataset for languages: {lang_set}")
+            self.full_ds = self.full_ds.filter(
+                lambda x: (x.get('language') or x.get('lang') or '') in lang_set,
+                num_proc=4
+            )
+            print(f"✅ After filtering: {len(self.full_ds)} items")
+        
         self.full_ds = self.full_ds.shuffle(seed=42)
         print(f"✅ Loaded {len(self.full_ds)} items from parquet files.")
 
@@ -269,7 +280,8 @@ def train(args):
     
     # Dataset
     data_path = args.wav_dir if args.wav_dir else "data/chatterbox-multilingual-data"
-    dataset = MultilingualDataset(data_path, tokenizer, device="cpu")
+    languages = args.languages.split(',') if args.languages else None
+    dataset = MultilingualDataset(data_path, tokenizer, device="cpu", languages=languages)
     
     sampler = DistributedSampler(dataset) if args.distributed else None
     
@@ -301,9 +313,10 @@ def train(args):
     
     # ─── TRAINING LOOP ───
     start_epoch = 0
-    if args.ckpt_dir and "epoch_" in args.ckpt_dir:
+    resume_source = args.ckpt_dir or args.resume_t3_weights
+    if resume_source and "epoch_" in str(resume_source):
         import re
-        match = re.search(r"epoch_(\d+)", str(args.ckpt_dir))
+        match = re.search(r"epoch_(\d+)", str(resume_source))
         if match:
             start_epoch = int(match.group(1)) + 1
             if rank == 0:
@@ -395,7 +408,8 @@ def train(args):
             
         # Save checkpoint and generate sample
         if rank == 0 and epoch % args.save_every == 0:
-            ckpt_dir = f"lora_nepali_epoch_{epoch}"
+            name_prefix = args.push_to_hub.split('/')[-1] if args.push_to_hub else "lora_extended"
+            ckpt_dir = f"{name_prefix}_epoch_{epoch}"
             os.makedirs(ckpt_dir, exist_ok=True)
             
             model_to_save = t3.module if args.distributed else t3
@@ -414,7 +428,7 @@ def train(args):
             
             # --- LOCAL CHECKPOINT ROTATION ---
             if epoch > 0:
-                prev_ckpt_dir = f"lora_nepali_epoch_{epoch-1}"
+                prev_ckpt_dir = f"{name_prefix}_epoch_{epoch-1}"
                 if os.path.exists(prev_ckpt_dir):
                     import shutil
                     print(f"🧹 Cleaning up previous local checkpoint: {prev_ckpt_dir}")
@@ -476,11 +490,14 @@ def train(args):
     if rank == 0:
         model_to_save = t3.module if args.distributed else t3
         
-        final_dir = "lora_nepali_final"
+        final_dir = "lora_extended_final"
         os.makedirs(final_dir, exist_ok=True)
+        model_to_save.tfmr.config.base_model_name_or_path = base_model_id
         model_to_save.tfmr.save_pretrained(final_dir)
         torch.save(model_to_save.text_emb.state_dict(), f"{final_dir}/text_emb.pt")
-        print("Training finished. Saved LoRA to lora_nepali_final directory.")
+        with open(os.path.join(final_dir, "README.md"), "w") as f:
+            f.write(f"---\nbase_model: {base_model_id}\nlibrary_name: peft\ntags:\n- text-to-speech\n- nepali\n- maithili\n---\n")
+        print("Training finished. Saved LoRA to lora_extended_final directory.")
         
         if args.push_to_hub:
             try:
@@ -525,6 +542,7 @@ if __name__ == "__main__":
     parser.add_argument("--distributed", action="store_true", help="Enable distributed training (DDP)")
     parser.add_argument("--fp16", action="store_true", help="Enable float16 mixed precision (saves ~40%% GPU memory)")
     parser.add_argument("--push_to_hub", type=str, help="Hugging Face repo ID to push checkpoints to (e.g. officialuser/chatterbox-nepali)")
+    parser.add_argument("--languages", type=str, help="Comma-separated list of language codes to filter for (e.g. ne,mai)")
     
     args = parser.parse_args()
     
